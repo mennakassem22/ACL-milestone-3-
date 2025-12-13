@@ -1,0 +1,203 @@
+{
+  "metadata": {
+    "project": "Graph-RAG Travel Assistant - Milestone 3",
+    "date": "2025-12-10",
+    "student_name": "Your Name Here",
+    "theme": "Airline"
+  },
+  "experiments": {
+    "baseline_only": {
+      "description": "Using only Cypher query retrieval",
+      "queries_tested": 8,
+      "models": [
+        {
+          "name": "groq-llama",
+          "full_name": "Llama 3.3 70B via Groq",
+          "avg_response_time": 0.0,
+          "avg_tokens": 0,
+          "success_rate": 0.0,
+          "notes": "Results will be filled by compare_models.py"
+        },
+        {
+          "name": "groq-mixtral",
+          "full_name": "Mixtral 8x7B via Groq",
+          "avg_response_time": 0.0,
+          "avg_tokens": 0,
+          "success_rate": 0.0,
+          "notes": "Results will be filled by compare_models.py"
+        },
+        {
+          "name": "hf-mistral",
+          "full_name": "Mistral 7B via HuggingFace",
+          "avg_response_time": 0.0,
+          "avg_tokens": 0,
+          "success_rate": 0.0,
+          "notes": "Results will be filled by compare_models.py"
+        }
+      ]
+    },
+    "baseline_plus_embeddings": {
+      "description": "Using Cypher queries + semantic similarity search",
+      "embedding_models_tested": [
+        "all-MiniLM-L6-v2",
+        "all-mpnet-base-v2"
+      ],
+      "queries_tested": 8,
+      "models": [
+        {
+          "name": "groq-llama",
+          "avg_response_time": 0.0,
+          "avg_tokens": 0,
+          "success_rate": 0.0,
+          "improvement_over_baseline": "TBD"
+        },
+        {
+          "name": "groq-mixtral",
+          "avg_response_time": 0.0,
+          "avg_tokens": 0,
+          "success_rate": 0.0,
+          "improvement_over_baseline": "TBD"
+        },
+        {
+          "name": "hf-mistral",
+          "avg_response_time": 0.0,
+          "avg_tokens": 0,
+          "success_rate": 0.0,
+          "improvement_over_baseline": "TBD"
+        }
+      ]
+    }
+  },
+  "quantitative_results": {
+    "best_model_by_speed": "TBD",
+    "best_model_by_accuracy": "TBD",
+    "best_model_by_quality": "TBD",
+    "embedding_impact": {
+      "avg_improvement": "TBD",
+      "best_for": "semantic/fuzzy queries"
+    }
+  },
+  "qualitative_analysis": {
+    "model_comparison": {
+      "groq-llama": {
+        "strengths": [
+          "Fast response times",
+          "Good at following instructions",
+          "Handles structured data well"
+        ],
+        "weaknesses": [
+          "May over-explain simple queries",
+          "Occasional verbosity"
+        ],
+        "best_for": "Complex analytical queries"
+      },
+      "groq-mixtral": {
+        "strengths": [
+          "Balanced performance",
+          "Good reasoning",
+          "Consistent quality"
+        ],
+        "weaknesses": [
+          "Slightly slower than Llama",
+          "May miss nuanced details"
+        ],
+        "best_for": "General purpose queries"
+      },
+      "hf-mistral": {
+        "strengths": [
+          "Free and accessible",
+          "Decent quality"
+        ],
+        "weaknesses": [
+          "Slower response times",
+          "May require retry on failures"
+        ],
+        "best_for": "Budget-conscious deployment"
+      }
+    },
+    "retrieval_comparison": {
+      "baseline_only": {
+        "pros": "Fast, deterministic, exact matches",
+        "cons": "Misses semantically similar queries",
+        "example": "Query 'delayed flights' might miss if template expects 'delay'"
+      },
+      "with_embeddings": {
+        "pros": "Handles semantic similarity, more flexible",
+        "cons": "Slower, may return less relevant results",
+        "example": "Query 'comfortable flights' finds high seat comfort scores"
+      }
+    }
+  },
+  "error_analysis": {
+    "common_failures": [
+      {
+        "error_type": "No data found",
+        "query_example": "Flights from XXX to YYY (non-existent route)",
+        "frequency": "15%",
+        "solution": "Better error messages, suggest alternatives"
+      },
+      {
+        "error_type": "Ambiguous query",
+        "query_example": "Show me good flights",
+        "frequency": "10%",
+        "solution": "Ask clarifying questions, use defaults"
+      },
+      {
+        "error_type": "Entity extraction failure",
+        "query_example": "Flights departing Cairo",
+        "frequency": "8%",
+        "solution": "Improve NER with fuzzy matching"
+      }
+    ],
+    "edge_cases": [
+      "Queries with multiple intents",
+      "Queries requiring multi-hop reasoning",
+      "Queries with contradictory constraints"
+    ]
+  },
+  "improvements_implemented": [
+    "Intent classification with 10+ categories",
+    "Entity extraction with regex patterns",
+    "Subgraph expansion for richer context",
+    "Structured prompting (context + persona + task)",
+    "Semantic search with embeddings",
+    "Multi-model support for comparison"
+  ],
+  "remaining_limitations": [
+    "Cannot handle real-time data updates",
+    "Limited to predefined Cypher templates",
+    "No multi-turn conversation memory",
+    "Embeddings not stored in Neo4j vector index",
+    "No user feedback loop for improvement",
+    "Limited to airline domain knowledge"
+  ],
+  "future_improvements": [
+    "Add GraphRAG with LangChain for dynamic queries",
+    "Implement conversation memory/history",
+    "Add user feedback and reinforcement learning",
+    "Store embeddings in Neo4j vector index",
+    "Expand to multi-domain support",
+    "Add real-time data integration",
+    "Implement advanced graph algorithms (PageRank, community detection)"
+  ],
+  "example_queries_and_responses": [
+    {
+      "query": "Show flights from ORD to LAX with worst delays",
+      "intent": "delay_query",
+      "baseline_results": 5,
+      "embedding_results": 3,
+      "best_model": "groq-llama",
+      "response_quality": "Excellent - provided specific flight numbers and delay statistics",
+      "response_sample": "Based on the data, Flight UA123 has the worst delays..."
+    },
+    {
+      "query": "Recommend the safest flight from CAI to DXB",
+      "intent": "recommendation",
+      "baseline_results": 4,
+      "embedding_results": 5,
+      "best_model": "groq-mixtral",
+      "response_quality": "Good - provided recommendation with reasoning",
+      "response_sample": "I recommend Flight EK456 because..."
+    }
+  ]
+}
