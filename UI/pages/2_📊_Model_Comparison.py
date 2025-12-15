@@ -104,7 +104,7 @@ with st.sidebar:
     model_selections = {}
     
     model_selections["ollama-llama"] = st.checkbox(
-        "🏠 Llama 3.2 (Ollama - Local)",
+        " Llama 3.2 (Ollama - Local)",
         value=True,
         help="Fast, private, runs on your machine"
     )

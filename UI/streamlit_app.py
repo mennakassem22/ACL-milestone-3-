@@ -250,7 +250,7 @@ with st.sidebar:
     st.markdown("#### 🤖 Select AI Model")
     
     model_options = {
-        "🏠 Ollama (Local)": "ollama-llama",
+        " Ollama (Local)": "ollama-llama",
         "☁️ HuggingFace (Cloud)": "hf-mistral"
     }
     
@@ -289,9 +289,9 @@ with st.sidebar:
     # Search Method
     st.markdown("#### 🔍 Search Method")
     retrieval_options = {
-        "🎯 Smart Search": "Baseline + Embeddings",
-        "⚡ Quick Search": "Baseline Only",
-        "🧠 AI Search": "Embeddings Only"
+        " Smart Search": "Baseline + Embeddings",
+        " Quick Search": "Baseline Only",
+        " AI Search": "Embeddings Only"
     }
     
     selected_search = st.radio(
