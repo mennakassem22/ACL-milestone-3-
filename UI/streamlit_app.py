@@ -374,7 +374,6 @@ with col2:
 if clear_btn:
     st.session_state.query = ''
     st.rerun()
-
 # ============================================================================
 # MAIN PROCESSING
 # ============================================================================
@@ -413,69 +412,123 @@ if analyze_btn and query:
                 baseline_results = []
                 embedding_results = []
                 
+                # BASELINE RETRIEVAL
                 if use_baseline:
                     with st.spinner("Searching database..."):
-                        template_name = choose_template_for_intent(intent)
-                        params = {"limit": 10}
-                        
-                        if "origin" in entities:
-                            params["origin"] = entities["origin"]
-                        if "destination" in entities:
-                            params["destination"] = entities["destination"]
-                        if "flight_number" in entities:
-                            params["flight_no"] = entities["flight_number"]
-                        
-                        if show_details:
-                            with st.expander("🔧 Query Details"):
-                                from cypher_templates import TEMPLATES
-                                st.code(TEMPLATES[template_name]["cypher"], language="cypher")
-                        
-                        baseline_results = run_template(template_name, params)
-                        
-                        if baseline_results:
-                            flight_nums = [r.get('flight_number') or r.get('flight') for r in baseline_results[:5]]
-                            flight_nums = [f for f in flight_nums if f]
-                            if flight_nums:
-                                expanded = expand_subgraph_for_flights(flight_nums)
-                                if expanded:
-                                    baseline_results = expanded
-                        
-                        st.success(f"✅ Found {len(baseline_results)} flights")
+                        try:
+                            template_name = choose_template_for_intent(intent)
+                            params = {"limit": 10}
+                            
+                            # Add parameters from entities
+                            if "origin" in entities:
+                                params["origin"] = entities["origin"]
+                            if "destination" in entities:
+                                params["destination"] = entities["destination"]
+                            if "flight_number" in entities:
+                                params["flight_no"] = entities["flight_number"]
+                            
+                            # Show query if details enabled
+                            if show_details:
+                                with st.expander("🔧 Query Details"):
+                                    from cypher_templates import TEMPLATES
+                                    st.code(TEMPLATES[template_name]["cypher"], language="cypher")
+                            
+                            # Run the query
+                            baseline_results = run_template(template_name, params)
+                            
+                            # Expand subgraph if we got results
+                            if baseline_results:
+                                flight_nums = [r.get('flight_number') or r.get('flight') for r in baseline_results[:5]]
+                                flight_nums = [f for f in flight_nums if f]
+                                if flight_nums:
+                                    try:
+                                        expanded = expand_subgraph_for_flights(flight_nums)
+                                        if expanded:
+                                            baseline_results = expanded
+                                    except Exception as expand_error:
+                                        st.warning(f"⚠️ Subgraph expansion failed: {str(expand_error)[:50]}...")
+                            
+                            if baseline_results:
+                                st.success(f"✅ Baseline found {len(baseline_results)} flights")
+                            else:
+                                st.warning("⚠️ Baseline search returned no results")
+                                
+                        except Exception as baseline_error:
+                            st.error(f"❌ Baseline search error: {str(baseline_error)[:100]}")
+                            if show_details:
+                                with st.expander("🐛 Baseline Error Details"):
+                                    import traceback
+                                    st.code(traceback.format_exc())
                 
+                # EMBEDDING RETRIEVAL
                 if use_embeddings:
                     with st.spinner("AI semantic search..."):
                         try:
                             from embeddings import EmbeddingSearch
                             searcher = EmbeddingSearch("all-MiniLM-L6-v2")
                             
+                            # Try to load cached embeddings
                             if not searcher.load_embeddings():
-                                st.info("Building AI index (first time)...")
+                                st.info("Building AI index (first time only)...")
                                 searcher.create_flight_embeddings(limit=200)
                                 searcher.save_embeddings()
                             
+                            # Search
                             similar = searcher.search_similar(query, top_k=5)
                             embedding_results = [item[0] for item in similar]
                             
-                            st.success(f"✅ AI found {len(embedding_results)} related flights")
-                        except Exception as e:
-                            st.warning(f"⚠️ AI search failed: {str(e)[:40]}...")
+                            if embedding_results:
+                                st.success(f"✅ AI found {len(embedding_results)} related flights")
+                            else:
+                                st.warning("⚠️ AI search returned no results")
+                                
+                        except Exception as embed_error:
+                            st.error(f"❌ AI search error: {str(embed_error)[:100]}")
+                            if show_details:
+                                with st.expander("🐛 AI Search Error Details"):
+                                    import traceback
+                                    st.code(traceback.format_exc())
                 
-                combined_results = baseline_results if use_baseline else embedding_results
+                # COMBINE RESULTS
+                # Priority: Use baseline if available, otherwise use embeddings
+                combined_results = []
                 
+                if use_baseline and baseline_results:
+                    combined_results = baseline_results
+                    st.info(f"📊 Using {len(combined_results)} results from Baseline search")
+                elif use_embeddings and embedding_results:
+                    combined_results = embedding_results
+                    st.info(f"🧠 Using {len(combined_results)} results from AI search")
+                elif baseline_results:
+                    combined_results = baseline_results
+                    st.info(f"📊 Using {len(combined_results)} results from Baseline (fallback)")
+                elif embedding_results:
+                    combined_results = embedding_results
+                    st.info(f"🧠 Using {len(combined_results)} results from AI (fallback)")
+                
+                # Check if we have any results
                 if not combined_results:
-                    st.warning("🔍 No results. Try: 'Show flight 1004' or 'flights from ORX to LAX'")
+                    st.warning("🔍 No results found from any search method.")
+                    st.info("💡 Try these queries:")
+                    st.markdown("""
+                    - "Show flight 1004"
+                    - "Flights from ORX to LAX"
+                    - "Which flights have the highest delays?"
+                    - "Best rated flights"
+                    """)
                     st.stop()
                 
                 # Show raw retrieved context
                 with st.expander("📊 View Retrieved Knowledge Graph Data", expanded=False):
-                    st.markdown("**Raw data retrieved from Neo4j before LLM processing:**")
-                    st.json(combined_results[:5])  # Show first 5 records
+                    st.markdown("**Raw data retrieved before LLM processing:**")
+                    st.json(combined_results[:5])
                     if len(combined_results) > 5:
                         st.caption(f"Showing 5 of {len(combined_results)} total records")
                 
                 # STEP 3: LLM Analysis
                 st.markdown("### 🤖 AI Analysis")
                 
+                # Build grounding context
                 if intent == "recommendation":
                     grounding = format_for_recommendation(combined_results, "avg_delay")
                 else:
@@ -486,14 +539,16 @@ if analyze_btn and query:
                 prompt = build_prompt(query, grounding, provenance, task_type)
                 system_msg = build_system_message(task_type)
                 
+                # Call LLM
                 with st.spinner(f"{'Ollama' if model_choice == 'ollama-llama' else 'HuggingFace'} processing..."):
                     caller = LLMCaller(model_choice, api_key)
                     result = caller.call(prompt, system_msg, max_tokens=max_tokens, temperature=temperature)
                 
                 st.markdown("---")
                 
+                # Display results
                 if "error" in result:
-                    st.error(f"❌ Error: {result['error']}")
+                    st.error(f"❌ LLM Error: {result['error']}")
                     if "Ollama" in result['error']:
                         st.info("💡 Start Ollama: `ollama serve` in terminal")
                     elif "410" in str(result.get('error', '')):
@@ -504,6 +559,7 @@ if analyze_btn and query:
                     st.markdown(result['response'])
                     st.markdown('</div>', unsafe_allow_html=True)
                     
+                    # Metrics
                     col1, col2, col3, col4 = st.columns(4)
                     with col1:
                         st.metric("⚡ Time", f"{result['time']:.1f}s")
@@ -514,6 +570,7 @@ if analyze_btn and query:
                     with col4:
                         st.metric("🔍 Method", selected_search.split()[0])
                     
+                    # Save to history
                     st.session_state.query_history.append({
                         'query': query,
                         'results': len(combined_results),
@@ -521,9 +578,10 @@ if analyze_btn and query:
                     })
             
             except Exception as e:
-                st.error("❌ An error occurred")
+                st.error("❌ An unexpected error occurred")
+                st.error(str(e))
                 if show_details:
-                    with st.expander("🐛 Debug"):
+                    with st.expander("🐛 Full Debug Info"):
                         import traceback
                         st.code(traceback.format_exc())
 

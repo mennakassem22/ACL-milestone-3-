@@ -1,11 +1,11 @@
-# backend/grounding_builder.py
+# backend/grounding_builder.py - ENHANCED VERSION
 
 from typing import List, Dict, Any
 
 def build_grounding_from_baseline(results: List[Dict[str, Any]]) -> str:
     """
     Convert graph query results into a readable text format for the LLM.
-    This creates the 'context' part of the prompt.
+    ENHANCED: Better interpretation of delays and satisfaction scores.
     
     Args:
         results: List of dictionaries from Neo4j query results
@@ -26,14 +26,13 @@ def build_grounding_from_baseline(results: List[Dict[str, Any]]) -> str:
             # Handle None values
             if value is None:
                 display_value = "N/A"
+            
             # Handle lists (like journeys)
             elif isinstance(value, list):
                 if len(value) == 0:
                     display_value = "[]"
                 else:
-                    # Pretty print first few items
                     display_value = f"[{len(value)} items]"
-                    # Show sample if items are dicts
                     if value and isinstance(value[0], dict):
                         grounding_parts.append(f"  {key}:")
                         for item in value[:3]:  # Show first 3
@@ -41,12 +40,42 @@ def build_grounding_from_baseline(results: List[Dict[str, Any]]) -> str:
                         if len(value) > 3:
                             grounding_parts.append(f"    ... and {len(value) - 3} more")
                         continue
-            # Handle numbers
+            
+            # ENHANCED: Handle delay fields specially
+            elif 'delay' in key.lower() and isinstance(value, (int, float)):
+                delay_value = float(value)
+                if delay_value < 0:
+                    display_value = f"{abs(delay_value):.1f} minutes EARLY (good performance)"
+                elif delay_value == 0:
+                    display_value = "On time (0 minutes)"
+                else:
+                    display_value = f"{delay_value:.1f} minutes LATE (poor performance)"
+            
+            # ENHANCED: Handle satisfaction score fields specially
+            elif 'satisfaction' in key.lower() or 'score' in key.lower():
+                if isinstance(value, (int, float)):
+                    score = float(value)
+                    if score >= 4.5:
+                        display_value = f"{score:.1f}/5.0 (Excellent)"
+                    elif score >= 4.0:
+                        display_value = f"{score:.1f}/5.0 (Good)"
+                    elif score >= 3.0:
+                        display_value = f"{score:.1f}/5.0 (Average)"
+                    elif score >= 2.0:
+                        display_value = f"{score:.1f}/5.0 (Poor)"
+                    else:
+                        display_value = f"{score:.1f}/5.0 (Very Poor)"
+                else:
+                    display_value = str(value)
+            
+            # Handle regular numbers
             elif isinstance(value, (int, float)):
                 if isinstance(value, float):
                     display_value = f"{value:.2f}"
                 else:
                     display_value = str(value)
+            
+            # Handle everything else
             else:
                 display_value = str(value)
             
@@ -80,7 +109,6 @@ def build_provenance_table(results: List[Dict[str, Any]]) -> str:
     entity_types = set()
     for record in results:
         for key in record.keys():
-            # Try to identify entity types from key names
             if "flight" in key.lower():
                 entity_types.add("Flights")
             elif "airport" in key.lower() or "origin" in key.lower() or "dest" in key.lower():
@@ -138,7 +166,22 @@ def build_grounding_with_embeddings(baseline_results: List[Dict],
             parts.append(f"Match {idx} (similarity: {score:.3f}):")
             for key, value in record.items():
                 if value is not None:
-                    parts.append(f"  {key}: {value}")
+                    # Apply same enhancements for delays and scores
+                    if 'delay' in key.lower() and isinstance(value, (int, float)):
+                        delay_value = float(value)
+                        if delay_value < 0:
+                            display_value = f"{abs(delay_value):.1f} min EARLY"
+                        else:
+                            display_value = f"{delay_value:.1f} min LATE"
+                    elif 'satisfaction' in key.lower() or 'score' in key.lower():
+                        if isinstance(value, (int, float)):
+                            display_value = f"{float(value):.1f}/5.0"
+                        else:
+                            display_value = str(value)
+                    else:
+                        display_value = str(value)
+                    
+                    parts.append(f"  {key}: {display_value}")
             parts.append("")
     
     return "".join(parts)
@@ -149,10 +192,11 @@ def format_for_recommendation(results: List[Dict[str, Any]],
     """
     Format results specifically for recommendation tasks.
     Sorts and highlights the best options.
+    ENHANCED: Better interpretation of what "best" means.
     
     Args:
         results: Query results to format
-        ranking_key: Key to use for ranking (lower is better for delays)
+        ranking_key: Key to use for ranking
     
     Returns:
         Formatted recommendation text
@@ -160,25 +204,61 @@ def format_for_recommendation(results: List[Dict[str, Any]],
     if not results:
         return "No recommendations available based on current data."
     
-    # Sort results
-    sorted_results = sorted(results, key=lambda x: x.get(ranking_key, float('inf')))
+    # Sort results - SMART SORTING
+    # For delays: negative (early) is better, so sort ascending
+    if 'delay' in ranking_key.lower():
+        sorted_results = sorted(results, key=lambda x: x.get(ranking_key, float('inf')))
+    else:
+        # For scores: higher is better, so sort descending
+        sorted_results = sorted(results, key=lambda x: x.get(ranking_key, 0), reverse=True)
     
     parts = []
     parts.append("=== RANKED RECOMMENDATIONS ===\n")
+    parts.append("Flights ranked from BEST to WORST:\n")
     
     for idx, record in enumerate(sorted_results[:10], 1):  # Top 10
-        parts.append(f"Rank #{idx}:")
+        if idx == 1:
+            parts.append(f"🥇 Rank #{idx} - BEST CHOICE:")
+        elif idx == 2:
+            parts.append(f"🥈 Rank #{idx} - SECOND BEST:")
+        elif idx == 3:
+            parts.append(f"🥉 Rank #{idx} - THIRD BEST:")
+        else:
+            parts.append(f"Rank #{idx}:")
         
-        # Highlight key metrics
+        # Highlight key info
         if "flight_number" in record:
             parts.append(f"  Flight: {record['flight_number']}")
+        
+        # Show ranking metric with interpretation
         if ranking_key in record:
-            parts.append(f"  {ranking_key}: {record[ranking_key]}")
+            value = record[ranking_key]
+            if 'delay' in ranking_key.lower() and isinstance(value, (int, float)):
+                delay = float(value)
+                if delay < 0:
+                    parts.append(f"  ✅ Arrival: {abs(delay):.1f} min EARLY (excellent)")
+                elif delay < 15:
+                    parts.append(f"  ⚠️  Arrival: {delay:.1f} min late (acceptable)")
+                else:
+                    parts.append(f"  ❌ Arrival: {delay:.1f} min LATE (poor)")
+            else:
+                parts.append(f"  {ranking_key}: {value}")
         
         # Add other relevant info
         for key, value in record.items():
             if key not in ["flight_number", ranking_key] and value is not None:
-                if isinstance(value, float):
+                if 'satisfaction' in key.lower() or 'score' in key.lower():
+                    if isinstance(value, (int, float)):
+                        score = float(value)
+                        if score >= 4.0:
+                            parts.append(f"  ✅ {key}: {score:.1f}/5.0 (good)")
+                        elif score >= 3.0:
+                            parts.append(f"  ⚠️  {key}: {score:.1f}/5.0 (average)")
+                        else:
+                            parts.append(f"  ❌ {key}: {score:.1f}/5.0 (poor)")
+                    else:
+                        parts.append(f"  {key}: {value}")
+                elif isinstance(value, float):
                     parts.append(f"  {key}: {value:.2f}")
                 else:
                     parts.append(f"  {key}: {value}")
@@ -188,31 +268,77 @@ def format_for_recommendation(results: List[Dict[str, Any]],
     return "\n".join(parts)
 
 
+def summarize_data_quality(results: List[Dict[str, Any]]) -> str:
+    """
+    NEW: Provide a quick summary of the data quality and completeness.
+    
+    Args:
+        results: Query results
+    
+    Returns:
+        Data quality summary
+    """
+    if not results:
+        return "No data available."
+    
+    summary = []
+    summary.append("=== DATA QUALITY SUMMARY ===")
+    summary.append(f"Total records: {len(results)}")
+    
+    # Check for key fields
+    has_delays = any('delay' in str(k).lower() for r in results for k in r.keys())
+    has_satisfaction = any('satisfaction' in str(k).lower() or 'score' in str(k).lower() for r in results for k in r.keys())
+    has_flights = any('flight' in str(k).lower() for r in results for k in r.keys())
+    
+    summary.append(f"Contains delay data: {'Yes' if has_delays else 'No'}")
+    summary.append(f"Contains satisfaction data: {'Yes' if has_satisfaction else 'No'}")
+    summary.append(f"Contains flight identifiers: {'Yes' if has_flights else 'No'}")
+    
+    return "\n".join(summary)
+
+
 # Test function
 if __name__ == "__main__":
     # Sample test data
     test_results = [
         {
-            "flight_number": "UA123",
-            "fleet": "Boeing 737",
-            "avg_arrival_delay": 45.2,
-            "feedback_count": 156
+            "flight_number": "1004",
+            "passenger": "LHXX2P",
+            "feedback_id": "F_2778",
+            "food_satisfaction_score": 5.0,
+            "seat_comfort_satisfaction_score": 4.5,
+            "arrival_delay_minutes": -18.0,
+            "number_of_legs": 1
         },
         {
-            "flight_number": "AA456",
-            "fleet": "Airbus A320",
-            "avg_arrival_delay": 12.5,
-            "feedback_count": 203
+            "flight_number": "1005",
+            "avg_arrival_delay": 45.2,
+            "avg_food_score": 2.5,
+            "feedback_count": 156
         }
     ]
     
-    print("=== Testing Grounding Builder ===\n")
+    print("=== Testing Enhanced Grounding Builder ===\n")
     
-    print("1. Basic Grounding:")
-    print(build_grounding_from_baseline(test_results))
+    print("1. Basic Grounding (with enhancements):")
+    print("-" * 80)
+    grounding = build_grounding_from_baseline(test_results)
+    print(grounding)
     
     print("\n2. Provenance Table:")
+    print("-" * 80)
     print(build_provenance_table(test_results))
     
     print("\n3. Recommendation Format:")
-    print(format_for_recommendation(test_results, "avg_arrival_delay"))
+    print("-" * 80)
+    print(format_for_recommendation(test_results, "arrival_delay_minutes"))
+    
+    print("\n4. Data Quality Summary:")
+    print("-" * 80)
+    print(summarize_data_quality(test_results))
+    
+    print("\n✅ Key Enhancements:")
+    print("  • Delays show as 'EARLY (good)' or 'LATE (poor)'")
+    print("  • Satisfaction scores show scale and quality")
+    print("  • Recommendations show best to worst")
+    print("  • Visual indicators (✅ ⚠️ ❌) for quick scanning")

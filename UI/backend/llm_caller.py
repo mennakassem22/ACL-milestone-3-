@@ -44,8 +44,8 @@ class LLMCaller:
         model_map = {
             "groq-llama": "llama-3.3-70b-versatile",
             "groq-mixtral": "mixtral-8x7b-32768",
-            "hf-mistral": "mistralai/Mistral-7B-Instruct-v0.2",
-            "hf-gemma": "google/gemma-2-2b-it",
+         "hf-mistral": "microsoft/Phi-3-mini-4k-instruct",
+           "hf-gemma": "Qwen/Qwen2.5-0.5B-Instruct",
             "ollama-llama": "llama3.2"
         }
         return model_map.get(self.model_name, "llama-3.3-70b-versatile")
