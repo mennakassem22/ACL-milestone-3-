@@ -4,7 +4,9 @@ import re
 from typing import Dict, Any, List
 
 # ============================================================================
-# REGEX PATTERNS - More robust and accurate
+# REGEX PATTERNS - More robust and accurate 
+#short for (Regular Expression) is a powerful pattern-matching language used to search, extract, 
+# and validate text based on specific patterns.
 # ============================================================================
 
 # Airport codes: 3 capital letters, not part of longer word
@@ -351,7 +353,7 @@ if __name__ == "__main__":
         if not entities:
             print("  (No entities extracted)")
     
-    print("\n\n✅ Enhancement Summary:")
+    print("\n\nEnhancement Summary:")
     print("  • City name recognition (Dubai → DXB)")
     print("  • Better flight number detection")
     print("  • Context-aware limit extraction")

@@ -1,4 +1,4 @@
-# backend/cypher_templates.py - ENHANCED VERSION
+# backend/cypher_templates.py 
 
 TEMPLATES = {
 
@@ -441,6 +441,6 @@ if __name__ == "__main__":
         print(f"   Parameters: {TEMPLATES[name]['params']}")
         print()
     
-    print(f"\n✅ Total templates: {len(TEMPLATES)}")
-    print(f"✅ Enhanced with better aggregations and statistics")
-    print(f"✅ Includes {len(TEMPLATES) - 10} new query types")
+    print(f"\ Total templates: {len(TEMPLATES)}")
+    print(f" Enhanced with better aggregations and statistics")
+    print(f" Includes {len(TEMPLATES) - 10} new query types")

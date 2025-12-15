@@ -1,9 +1,9 @@
-# backend/retriever.py - ENHANCED VERSION
+# backend/retriever.py 
 
 from graph_connector import run_cypher
 from cypher_templates import TEMPLATES
 from typing import List, Dict, Any
-# In retriever.py, update choose_template_for_intent():
+
 
 def choose_template_for_intent(intent: str) -> str:
     mapping = {
@@ -18,10 +18,10 @@ def choose_template_for_intent(intent: str) -> str:
         "availability": "seat_availability",
         "connecting_flights": "connecting_flights_one_stop",
         "recommendation": "recommend_least_risky",
-        "best_flights": "recommend_best_flights",  # NEW
-        "fleet_search": "search_by_fleet",  # NEW
-        "quality_search": "search_high_satisfaction",  # NEW
-        "comparison": "compare_routes",  # NEW
+        "best_flights": "recommend_best_flights",  
+        "fleet_search": "search_by_fleet", 
+        "quality_search": "search_high_satisfaction",  
+        "comparison": "compare_routes",  
         "unknown": "fallback_query"
     }
     

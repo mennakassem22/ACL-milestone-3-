@@ -273,4 +273,4 @@ if __name__ == "__main__":
         top_k=3
     )
     
-    print("\n✅ Embedding search test complete!")
+    print("\n Embedding search test complete!")
